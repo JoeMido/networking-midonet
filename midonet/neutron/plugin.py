@@ -25,6 +25,7 @@ from oslo_utils import importutils
 from midonet.neutron import api
 from midonet.neutron.common import util
 from midonet.neutron.db import db_util
+from midonet.neutron.db import db_agent_membership as db_am
 from midonet.neutron.db import routedserviceinsertion_db as rsi_db
 from midonet.neutron.db import task
 from midonet.neutron import extensions
@@ -72,7 +73,8 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
                    rsi_db.RoutedServiceInsertionDbMixin,
                    loadbalancer_db.LoadBalancerPluginDb,
                    api.MidoNetApiMixin,
-                   task.MidoClusterMixin):
+                   task.MidoClusterMixin,
+                   db_am.AgentMembershipDbMixin):
 
     supported_extension_aliases = ['bgp',
                                    'cluster',
