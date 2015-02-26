@@ -39,6 +39,7 @@ VIP = "VIP"
 HEALTH_MONITOR = "HEALTHMONITOR"
 MEMBER = "MEMBER"
 PORT_BINDING = "PORTBINDING"
+CONFIG = "CONFIG"
 
 
 OP_IMPORT = 'IMPORT'
@@ -85,6 +86,17 @@ def create_task(context, type, task_id=None, data_type=None,
                   resource_id=resource_id,
                   transaction_id=context.request_id)
         context.session.add(db)
+
+
+def create_config_task(session, data):
+    with session.begin(subtransactions=True):
+        db = Task(type=UPDATE,
+                  tenant_id=None,
+                  data_type=CONFIG,
+                  data=jsonutils.dumps(data),
+                  resource_id=data['id'],
+                  transaction_id=CONFIG)
+        session.add(db)
 
 
 class MidonetClusterException(n_exc.NeutronException):

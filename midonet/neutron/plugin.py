@@ -41,6 +41,7 @@ from neutron.common import topics
 from neutron.common import utils
 from neutron.db import agents_db
 from neutron.db import agentschedulers_db
+import neutron.db.api as db
 from neutron.db import db_base_plugin_v2
 from neutron.db import external_net_db
 from neutron.db import l3_gwmode_db
@@ -56,6 +57,10 @@ from neutron_lbaas.db.loadbalancer import loadbalancer_db
 LOG = logging.getLogger(__name__)
 _LE = i18n._LE
 _LI = i18n._LI
+
+cfg.CONF.register_opts([cfg.StrOpt('tunnel_protocol', default='vxlan',
+                                   help=_('tunnel protocol used by Midonet'))],
+                       'MIDONET')
 
 
 class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
@@ -99,6 +104,7 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
                                             project_id=conf.project_id)
 
         self.setup_rpc()
+        self.make_config_task(conf)
 
         self.base_binding_dict = {
             portbindings.VIF_TYPE: portbindings.VIF_TYPE_MIDONET,
@@ -110,6 +116,12 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
         self.network_scheduler = importutils.import_object(
             cfg.CONF.network_scheduler_driver
         )
+
+    def make_config_task(self, conf):
+        CONF_ID = '00000000-0000-0000-0000-000000000001'
+        conf_dict = {'tunnel_protocol': conf.tunnel_protocol,
+                     'id': CONF_ID}
+        task.create_config_task(db.get_session(), conf_dict)
 
     def setup_rpc(self):
         # RPC support
