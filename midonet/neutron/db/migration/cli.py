@@ -15,6 +15,7 @@
 import os
 
 from alembic import config as alembic_config
+import midonet.neutron.db.data_state_db as ds_db
 from midonet.neutron.db import task_db
 from neutron.db.migration import cli as n_cli
 from oslo_config import cfg
@@ -67,15 +68,28 @@ def task_resource(config, cmd):
 
 
 def data_show(config, cmd):
-    pass
+    connection = config.neutron_config.database.connection
+    session = get_session(connection)
+    printer = config.print_stdout
+    data_state = ds_db.get_data_state(session)
+    line = "%-25s : %s"
+    printer(line, "last processed task id", data_state.last_processed_task_id)
+    printer(line, "last updated", data_state.updated_at)
+    printer(line, "active version", data_state.active_version)
+    readonly = "True" if data_state.readonly else "False"
+    printer(line, "read only", readonly)
 
 
 def data_readonly(config, cmd):
-    pass
+    connection = config.neutron_config.database.connection
+    session = get_session(connection)
+    ds_db.set_readonly(session)
 
 
 def data_readwrite(config, cmd):
-    pass
+    connection = config.neutron_config.database.connection
+    session = get_session(connection)
+    ds_db.set_readwrite(session)
 
 
 def data_version_list(config, cmd):
