@@ -13,11 +13,17 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import datetime
 from neutron.db import model_base
 import sqlalchemy as sa
 
 
 DATA_VERSIONS_TABLE = 'midonet_data_versions'
+STARTED = "STARTED"
+COMPLETED = "COMPLETED"
+ERROR = "ERROR"
+ABORTED = "ABORTED"
+
 
 class DataVersion(model_base.BASEV2):
     __tablename__ = DATA_VERSIONS_TABLE
@@ -29,5 +35,47 @@ class DataVersion(model_base.BASEV2):
     stale = sa.Column(sa.Boolean())
 
 
+def complete_last_version(session):
+    data_versions = session.query(DataVersion)
+    dv = data_versions.order_by(DataVersion.id.desc()).first()
+    dv.update({'sync_tasks_status': COMPLETED})
+
+
+def error_last_version(session):
+    data_versions = session.query(DataVersion)
+    dv = data_versions.order_by(DataVersion.id.desc()).first()
+    dv.update({'sync_tasks_status': ERROR})
+
+
+def abort_last_version(session):
+    data_versions = session.query(DataVersion)
+    dv = data_versions.order_by(DataVersion.id.desc()).first()
+    dv.update({'sync_tasks_status': ABORTED})
+
+
+def get_last_version_id(session):
+    data_versions = session.query(DataVersion)
+    dv = data_versions.order_by(DataVersion.id.desc()).first()
+    if dv is None:
+        return None
+    else:
+        return dv.id
+
+
+def get_data_version_states(session):
+    dv = session.query(DataVersion).order_by(DataVersion.id.desc()).first()
+    if dv is None:
+        return None, None
+    else:
+        return dv.sync_status, dv.sync_tasks_status
+
+
 def get_data_versions(session):
     return session.query(DataVersion).all()
+
+
+def create_data_version(session):
+    data_version = DataVersion(sync_started_at=datetime.datetime.utcnow(),
+                               sync_tasks_status="STARTED",
+                               stale=False)
+    session.add(data_version)

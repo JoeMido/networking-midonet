@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import datetime
 from midonet.neutron.db import db_util
 from neutron.db import model_base
 import sqlalchemy as sa
@@ -42,8 +43,30 @@ def get_data_state(session):
         raise db_util.InvalidMidonetDataState(issue)
 
 
+def get_active_version(session):
+    ds = get_data_state(session)
+    return ds.active_version
+
+
+def update_active_version(session, version_id):
+    session.query(DataState).update(
+        {'active_version': version_id,
+         'updated_at': datetime.datetime.utcnow()})
+
+
+def get_last_processed_task_id(session):
+    ds = get_data_state(session)
+    return ds.last_processed_task_id
+
+
+def is_task_table_readonly(session):
+    ds = get_data_state(session)
+    return ds.readonly
+
+
 def set_data_state_readonly(session, val):
-    session.query(DataState).update({'readonly': val})
+    session.query(DataState).update(
+        {'readonly': val, 'updated_at': datetime.datetime.utcnow()})
     session.commit()
 
 

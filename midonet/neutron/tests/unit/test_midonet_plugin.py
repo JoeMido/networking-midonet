@@ -18,8 +18,11 @@
 import datetime
 import functools
 
+from midonet.neutron.common import exceptions as mexc
 from midonet.neutron.db import agent_membership_db  # noqa
 from midonet.neutron.db import data_state_db  # noqa
+from midonet.neutron.db import data_sync_db
+import midonet.neutron.db.data_version_db as dv_db
 from midonet.neutron.db import routedserviceinsertion_db  # noqa
 from midonet.neutron.db import task_db  # noqa
 from neutron.db import api as db_api
@@ -64,6 +67,12 @@ class MidonetPluginV2TestCase(test_plugin.NeutronDbPluginV2TestCase):
 
     def setUp(self):
         self.setup_parent()
+        engine = db_api.get_engine()
+        session = sessionmaker(bind=engine)()
+        session.add(data_state_db.DataState(
+            updated_at=datetime.datetime.utcnow(),
+            readonly=False))
+        session.commit()
 
 
 class TestMidonetNetworksV2(MidonetPluginV2TestCase,
@@ -156,10 +165,61 @@ class TestMidonetDataState(testlib_api.SqlTestCase):
 
     def test_data_state_readonly(self):
         data_state_db.set_readonly(self.session)
-        ds = data_state_db.get_data_state(self.session)
-        self.assertTrue(ds.readonly)
-        # TODO(Joe) - creating tasks should fail here. Implement
-        # with further task_db changes coming in data sync
+        self.assertTrue(data_state_db.is_task_table_readonly(self.session))
         data_state_db.set_readwrite(self.session)
-        ds = data_state_db.get_data_state(self.session)
-        self.assertTrue(not ds.readonly)
+        self.assertFalse(data_state_db.is_task_table_readonly(self.session))
+
+
+class TestMidonetDataSync(MidonetPluginV2TestCase):
+
+    def setUp(self):
+        super(TestMidonetDataSync, self).setUp()
+
+    def get_session(self):
+        engine = db_api.get_engine()
+        Session = sessionmaker(bind=engine)
+        return Session()
+
+    def test_validate_sync_op(self):
+        session = self.get_session()
+        data_state_db.set_readonly(session)
+        data_sync_db.validate_sync_operation(session)
+        data_state_db.set_readwrite(session)
+        self.assertRaises(mexc.DataStateReadOnly,
+                          data_sync_db.validate_sync_operation, session)
+
+    def test_data_sync(self):
+        session = self.get_session()
+        self.network()
+
+        data_state_db.set_readonly(session)
+        data_sync_db.sync_data(session, {'c': 'M'})
+
+        # Sync completed. Now verify everything looks right
+        tasks = task_db.get_task_list(session, True)
+        self.assertEqual(tasks[0].data_type, task_db.DATA_VERSION_SYNC)
+        self.assertEqual(tasks[0].id, 1)
+        self.assertEqual(tasks[1].data_type, task_db.CONFIG)
+        self.assertEqual(tasks[-1].data_type, task_db.DATA_VERSION_ACTIVATE)
+
+        version_id = dv_db.get_last_version_id(session)
+        active_version = data_state_db.get_active_version(session)
+        self.assertEqual(active_version, version_id)
+
+        sync_status, task_status = dv_db.get_data_version_states(session)
+        self.assertEqual(sync_status, None)
+        self.assertEqual(task_status, dv_db.COMPLETED)
+
+    def test_data_sync_fail(self):
+        session = self.get_session()
+
+        def err(arg):
+            raise mexc.InvalidMidonetDataState()
+
+        task_db.reset_task_table = err
+        data_state_db.set_readonly(session)
+        self.assertRaises(mexc.InvalidMidonetDataState,
+                          data_sync_db.sync_data, session, {'c': 'M'})
+        sync_status, task_status = dv_db.get_data_version_states(session)
+        self.assertEqual(sync_status, None)
+        self.assertEqual(task_status, dv_db.ERROR)

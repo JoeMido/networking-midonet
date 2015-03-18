@@ -29,9 +29,13 @@ import datetime
 from midonet.neutron.db import task_db
 import sqlalchemy as sa
 
+DATA_VERSIONS_TABLE = 'midonet_data_versions'
+DATA_STATE_TABLE = 'midonet_data_state'
+TASK_STATE_TABLE = 'midonet_task_state'
+
 
 def add_data_versions_table():
-    op.create_table(task_db.DATA_VERSIONS_TABLE,
+    op.create_table(DATA_VERSIONS_TABLE,
                     sa.Column('id', sa.Integer(), primary_key=True),
                     sa.Column('sync_started_at', sa.DateTime()),
                     sa.Column('sync_finished_at', sa.DateTime()),
@@ -41,7 +45,7 @@ def add_data_versions_table():
 
 
 def add_data_state_table():
-    op.create_table(task_db.DATA_STATE_TABLE,
+    op.create_table(DATA_STATE_TABLE,
                     sa.Column('id', sa.Integer(), primary_key=True),
                     sa.Column('last_processed_task_id', sa.Integer()),
                     sa.Column('updated_at', sa.DateTime(),
@@ -53,7 +57,7 @@ def add_data_state_table():
                         ['last_processed_task_id'], ['midonet_tasks.id']),
                     sa.ForeignKeyConstraint(
                         ['active_version'],
-                        [task_db.DATA_VERSIONS_TABLE + '.id']))
+                        [DATA_VERSIONS_TABLE + '.id']))
     conn = op.get_bind()
     query_str = "select last_processed_id, updated_at from midonet_task_state"
     lp_id, updated_at = conn.execute(query_str).fetchall()[0]
@@ -61,8 +65,8 @@ def add_data_state_table():
         lp_id = "NULL"
     op.execute("INSERT INTO %s (id, last_processed_task_id, updated_at, "
                "active_version, readonly) VALUES (1, %s, '%s', NULL, false)"
-               % (task_db.DATA_STATE_TABLE, lp_id, updated_at))
-    op.drop_table(task_db.TASK_STATE_TABLE)
+               % (DATA_STATE_TABLE, lp_id, updated_at))
+    op.drop_table(TASK_STATE_TABLE)
 
 
 def remove_data_state_table():
@@ -76,14 +80,14 @@ def remove_data_state_table():
                                             ['midonet_tasks.id']))
     conn = op.get_bind()
     query_str = "select last_processed_task_id, updated_at from %s" % \
-                task_db.DATA_STATE_TABLE
+                DATA_STATE_TABLE
     lp_id, updated_at = conn.execute(query_str).fetchall()[0]
     if lp_id is None:
         lp_id = "NULL"
     op.execute("INSERT INTO %s (id, last_processed_id, updated_at) VALUES"
                " (1, %s, '%s')" %
-               (task_db.TASK_STATE_TABLE, lp_id, updated_at))
-    op.drop_table(task_db.DATA_STATE_TABLE)
+               (TASK_STATE_TABLE, lp_id, updated_at))
+    op.drop_table(DATA_STATE_TABLE)
 
 
 def upgrade():
@@ -93,4 +97,4 @@ def upgrade():
 
 def downgrade():
     remove_data_state_table()
-    op.drop_table(task_db.DATA_VERSIONS_TABLE)
+    op.drop_table(DATA_VERSIONS_TABLE)

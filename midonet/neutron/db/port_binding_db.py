@@ -13,11 +13,16 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_config import cfg
+from neutron.db import model_base
+import sqlalchemy as sa
 
-mido_opts = [
-    cfg.StrOpt('tunnel_protocol', default='vxlan',
-               help='Tunnel protocol used by Midonet'),
-]
 
-cfg.CONF.register_opts(mido_opts, "MIDONET")
+PORT_BINDING_TABLE_NAME = 'midonet_port_binding'
+
+
+class PortBinding(model_base.BASEV2):
+    __tablename__ = PORT_BINDING_TABLE_NAME
+    id = sa.Column(sa.String(length=36), primary_key=True)
+    port_id = sa.Column(sa.String(length=36), nullable=False)
+    host_id = sa.Column(sa.String(length=36), nullable=False)
+    sa.Column(sa.String(length=16), nullable=False)

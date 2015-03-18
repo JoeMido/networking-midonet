@@ -15,7 +15,9 @@
 import os
 
 from alembic import config as alembic_config
+from midonet.neutron.common import config
 import midonet.neutron.db.data_state_db as ds_db
+from midonet.neutron.db import data_sync_db
 import midonet.neutron.db.data_version_db as dv_db
 from midonet.neutron.db import task_db
 from neutron.db.migration import cli as n_cli
@@ -26,6 +28,7 @@ from sqlalchemy.orm import sessionmaker
 
 
 CONF = n_cli.CONF
+CONF.register_opts(config.mido_opts, "MIDONET")
 
 
 def get_session(connection):
@@ -106,7 +109,10 @@ def data_version_list(config, cmd):
 
 
 def data_version_sync(config, cmd):
-    pass
+    connection = config.neutron_config.database.connection
+    session = get_session(connection)
+    mido_config = config.neutron_config.MIDONET
+    data_sync_db.sync_data(session, mido_config)
 
 
 def data_version_activate(config, cmd):
