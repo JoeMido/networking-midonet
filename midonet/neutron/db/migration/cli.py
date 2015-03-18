@@ -14,6 +14,7 @@
 
 import os
 
+from midonet.neutron.common import config
 from alembic import config as alembic_config
 import midonet.neutron.db.data_state_db as ds_db
 import midonet.neutron.db.data_version_db as dv_db
@@ -26,6 +27,7 @@ from sqlalchemy.orm import sessionmaker
 
 
 CONF = n_cli.CONF
+CONF.register_opts(config.mido_opts, "MIDONET")
 
 
 def get_session(connection):

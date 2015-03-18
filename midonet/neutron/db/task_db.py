@@ -44,7 +44,8 @@ MEMBER = "MEMBER"
 PORT_BINDING = "PORTBINDING"
 CONFIG = "CONFIG"
 AGENT_MEMBERSHIP = "AGENTMEMBERSHIP"
-
+DATA_VERSION_SYNC = "DATAVERSIONSYNC"
+DATA_VERSION_ACTIVATE = "DATAVERSIONACTIVATE"
 
 OP_IMPORT = 'IMPORT'
 OP_FLUSH = 'FLUSH'
@@ -54,6 +55,14 @@ TASK_STATE_TABLE = 'midonet_task_state'
 
 LOG = logging.getLogger(__name__)
 _LI = i18n._LI
+
+
+class TaskTableAccess(Exception):
+    """
+    Exception to signify that an attempt was made at accessing the task
+    table when the operation was not allowed.
+    """
+    pass
 
 
 class Task(model_base.BASEV2):
@@ -103,27 +112,39 @@ def task_clean(session):
 def create_task(context, type, task_id=None, data_type=None,
                 resource_id=None, data=None):
 
+    if ds_db.is_task_table_readonly(context.session):
+        issue = "Attempt to create task while task table is locked"
+        LOG.exception(issue)
+        raise TaskTableAccess(issue)
     with context.session.begin(subtransactions=True):
-        db = Task(id=task_id,
-                  type=type,
-                  tenant_id=context.tenant,
-                  data_type=data_type,
-                  data=None if data is None else jsonutils.dumps(data),
-                  resource_id=resource_id,
-                  transaction_id=context.request_id)
-        context.session.add(db)
+        new_task(context.session, type, context.tenant, context.request_id,
+                 task_id, data_type, resource_id, data)
+
+
+def new_task(session, type, tenant_id, transaction_id, task_id=None,
+             data_type=None, resource_id=None, data=None):
+    db = Task(id=task_id,
+              type=type,
+              tenant_id=tenant_id,
+              data_type=data_type,
+              data=None if data is None else jsonutils.dumps(data),
+              resource_id=resource_id,
+              transaction_id=transaction_id)
+    session.add(db)
 
 
 def create_config_task(session, data):
     data['id'] = CONF_ID
-    with session.begin(subtransactions=True):
-        db = Task(type=CREATE,
-                  tenant_id=None,
-                  data_type=CONFIG,
-                  data=jsonutils.dumps(data),
-                  resource_id=data['id'],
-                  transaction_id=str(uuid.uuid4()))
-        session.add(db)
+    new_task(session, CREATE, None, str(uuid.uuid4()), data_type=CONFIG,
+             resource_id=CONF_ID, data=data)
+
+
+def get_most_recent_task_id(session):
+    task = session.query(Task).order_by(Task.id.desc()).first()
+    if task is None:
+        return None
+    else:
+        return task.id
 
 
 class MidonetClusterException(n_exc.NeutronException):
