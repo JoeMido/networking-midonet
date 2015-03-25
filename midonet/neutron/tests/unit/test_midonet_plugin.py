@@ -22,6 +22,7 @@ from midonet.neutron.db import agent_membership_db  # noqa
 from midonet.neutron.db import data_state_db  # noqa
 from midonet.neutron.db import routedserviceinsertion_db  # noqa
 from midonet.neutron.db import task_db  # noqa
+from midonet.neutron.db import port_bindings
 import mock
 from neutron import context
 from neutron.db import api as db_api
@@ -118,6 +119,14 @@ class TestMidonetPortsV2(MidonetPluginV2TestCase,
         with self.port(name='myname') as port:
             self.assertEqual('midonet', port['port']['binding:vif_type'])
             self.assertTrue(port['port']['admin_state_up'])
+
+    def test_profile_port_binding(self):
+        with self.port(arg_list=(portbindings.PROFILE,),) as port:
+            profile = port.get(portbindings.PROFILE)
+            import pdb
+            pdb.set_trace()
+            self.assertEqual('midonet', port['port']['binding:profile'])
+
 
 
 class TestMidonetPortBinding(MidonetPluginV2TestCase,

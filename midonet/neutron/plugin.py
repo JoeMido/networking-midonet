@@ -19,6 +19,7 @@
 from midonet.neutron.common import config  # noqa
 from midonet.neutron.db import agent_membership_db as am_db
 from midonet.neutron.db import db_util
+from midonet.neutron.db import port_binding_db as pb_db
 from midonet.neutron.db import routedserviceinsertion_db as rsi_db
 from midonet.neutron.db import task_db as task
 from midonet.neutron import extensions
@@ -67,7 +68,8 @@ class MidonetMixin(agentschedulers_db.DhcpAgentSchedulerDbMixin,
                    portbindings_db.PortBindingMixin,
                    rsi_db.RoutedServiceInsertionDbMixin,
                    securitygroups_db.SecurityGroupDbMixin,
-                   task.MidoClusterMixin):
+                   task.MidoClusterMixin,
+                   pb_db.MidonetPortBindingMixin):
 
     supported_extension_aliases = ['agent-membership',
                                    'cluster',
@@ -204,6 +206,8 @@ class MidonetMixin(agentschedulers_db.DhcpAgentSchedulerDbMixin,
     def create_port(self, context, port):
         """Create a L2 port in Neutron/MidoNet."""
         LOG.info(_LI("MidonetMixin.create_port called: port=%r"), port)
+        import pdb
+        pdb.set_trace()
 
         port_data = port['port']
         with context.session.begin(subtransactions=True):
@@ -231,6 +235,7 @@ class MidonetMixin(agentschedulers_db.DhcpAgentSchedulerDbMixin,
                                                          new_port)
             self._process_port_create_extra_dhcp_opts(context, new_port,
                                                       dhcp_opts)
+            self._update_midonet_port_binding(context, port_data)
 
         LOG.info(_LI("MidonetMixin.create_port exiting: port=%r"), new_port)
         return new_port
