@@ -27,7 +27,6 @@ from midonet.neutron.common import util
 from midonet.neutron.db import agent_membership_db as am_db
 from midonet.neutron.db import db_util
 from midonet.neutron.db import routedserviceinsertion_db as rsi_db
-from midonet.neutron.db import task_db as task
 from midonet.neutron import extensions
 from midonet.neutron.extensions import routedserviceinsertion as rsi
 from midonetclient import client
@@ -42,7 +41,6 @@ from neutron.common import topics
 from neutron.common import utils
 from neutron.db import agents_db
 from neutron.db import agentschedulers_db
-import neutron.db.api as db
 from neutron.db import db_base_plugin_v2
 from neutron.db import external_net_db
 from neutron.db import l3_gwmode_db
@@ -73,7 +71,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
                    rsi_db.RoutedServiceInsertionDbMixin,
                    loadbalancer_db.LoadBalancerPluginDb,
                    api.MidoNetApiMixin,
-                   task.MidoClusterMixin,
                    am_db.AgentMembershipDbMixin):
 
     supported_extension_aliases = ['agent-membership',
@@ -107,7 +104,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
                                             project_id=conf.project_id)
 
         self.setup_rpc()
-        task.create_config_task(db.get_session(), dict(conf))
 
         self.base_binding_dict = {
             portbindings.VIF_TYPE: portbindings.VIF_TYPE_MIDONET,
@@ -140,8 +136,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
         with context.session.begin(subtransactions=True):
             net = super(MidonetMixin, self).create_network(context, network)
-            task.create_task(context, task.CREATE, data_type=task.NETWORK,
-                             resource_id=net['id'], data=net)
             self._process_l3_create(context, net, net_data)
 
         return net
@@ -181,8 +175,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
         with context.session.begin(subtransactions=True):
             net = super(MidonetMixin, self).update_network(
                 context, id, network)
-            task.create_task(context, task.UPDATE, data_type=task.NETWORK,
-                             resource_id=id, data=net)
 
             self._process_l3_update(context, net, network['network'])
             self.api_cli.update_network(id, net)
@@ -207,8 +199,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
         with context.session.begin(subtransactions=True):
             self._process_l3_delete(context, id)
-            task.create_task(context, task.DELETE, data_type=task.NETWORK,
-                             resource_id=id)
             super(MidonetMixin, self).delete_network(context, id)
 
             self.api_cli.delete_network(id)
@@ -224,9 +214,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
         LOG.info(_LI("MidonetMixin.create_subnet called: subnet=%r"), subnet)
 
         sn_entry = super(MidonetMixin, self).create_subnet(context, subnet)
-        task.create_task(context, task.CREATE, data_type=task.SUBNET,
-                         resource_id=sn_entry['id'], data=sn_entry)
-
         try:
             self.api_cli.create_subnet(sn_entry)
         except Exception as ex:
@@ -250,8 +237,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
         with context.session.begin(subtransactions=True):
             super(MidonetMixin, self).delete_subnet(context, id)
-            task.create_task(context, task.DELETE, data_type=task.SUBNET,
-                             resource_id=id)
             self.api_cli.delete_subnet(id)
 
         LOG.info(_LI("MidonetMixin.delete_subnet exiting"))
@@ -264,8 +249,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
         with context.session.begin(subtransactions=True):
             s = super(MidonetMixin, self).update_subnet(context, id, subnet)
-            task.create_task(context, task.UPDATE, data_type=task.SUBNET,
-                             resource_id=id, data=s)
             self.api_cli.update_subnet(id, s)
 
         return s
@@ -276,8 +259,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
         with context.session.begin(subtransactions=True):
             # Create a Neutron port
             new_port = super(MidonetMixin, self).create_port(context, port)
-            task.create_task(context, task.CREATE, data_type=task.PORT,
-                             resource_id=new_port['id'], data=new_port)
 
             # Make sure that the port created is valid
             if "id" not in new_port:
@@ -330,8 +311,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
             super(MidonetMixin, self).disassociate_floatingips(
                 context, id, do_notify=False)
             super(MidonetMixin, self).delete_port(context, id)
-            task.create_task(context, task.DELETE, data_type=task.PORT,
-                             resource_id=id)
             self.api_cli.delete_port(id)
 
     def delete_port(self, context, id, l3_port_check=True):
@@ -368,8 +347,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
             # update the port DB
             p = super(MidonetMixin, self).update_port(context, id, port)
-            task.create_task(context, task.UPDATE, data_type=task.PORT,
-                             resource_id=id, data=p)
 
             self._process_port_update(context, id, port, p)
             self._process_portbindings_create_and_update(context,
@@ -393,8 +370,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
         LOG.info(_LI("MidonetMixin.create_router called: router=%(router)s"),
                  {"router": router})
         r = super(MidonetMixin, self).create_router(context, router)
-        task.create_task(context, task.CREATE, data_type=task.ROUTER,
-                         resource_id=r['id'], data=r)
 
         try:
             self.api_cli.create_router(r)
@@ -416,8 +391,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
         with context.session.begin(subtransactions=True):
             r = super(MidonetMixin, self).update_router(context, id, router)
-            task.create_task(context, task.UPDATE, data_type=task.ROUTER,
-                             resource_id=id, data=r)
             self.api_cli.update_router(id, r)
 
         LOG.info(_LI("MidonetMixin.update_router exiting: router=%r"), r)
@@ -436,8 +409,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
         with context.session.begin(subtransactions=True):
             super(MidonetMixin, self).delete_router(context, id)
-            task.create_task(context, task.DELETE, data_type=task.ROUTER,
-                             resource_id=id)
             self.api_cli.delete_router(id)
 
         LOG.info(_LI("MidonetMixin.delete_router exiting: id=%s"), id)
@@ -491,8 +462,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
         fip = super(MidonetMixin, self).create_floatingip(context,
                                                           floatingip)
-        task.create_task(context, task.CREATE, data_type=task.FLOATING_IP,
-                         resource_id=fip['id'], data=fip)
 
         try:
             self.api_cli.create_floating_ip(fip)
@@ -514,8 +483,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
         with context.session.begin(subtransactions=True):
             super(MidonetMixin, self).delete_floatingip(context, id)
-            task.create_task(context, task.DELETE,
-                             data_type=task.FLOATING_IP, resource_id=id)
             self.api_cli.delete_floating_ip(id)
 
         LOG.info(_LI("MidonetMixin.delete_floatingip exiting: id=%r"), id)
@@ -530,9 +497,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
         with context.session.begin(subtransactions=True):
             fip = super(MidonetMixin, self).update_floatingip(context, id,
                                                               floatingip)
-            task.create_task(context, task.UPDATE,
-                             data_type=task.FLOATING_IP, resource_id=id,
-                             data=fip)
 
             # Update status based on association
             if fip.get('port_id') is None:
@@ -567,8 +531,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
         # Create the Neutron sg first
         sg = super(MidonetMixin, self).create_security_group(
             context, security_group, default_sg)
-        task.create_task(context, task.CREATE, data_type=task.SECURITY_GROUP,
-                         resource_id=sg['id'], data=sg)
 
         try:
             # Process the MidoNet side
@@ -597,8 +559,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
         with context.session.begin(subtransactions=True):
             super(MidonetMixin, self).delete_security_group(context, id)
-            task.create_task(context, task.DELETE,
-                             data_type=task.SECURITY_GROUP, resource_id=id)
 
             self.api_cli.delete_security_group(id)
 
@@ -617,9 +577,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
         rule = super(MidonetMixin, self).create_security_group_rule(
             context, security_group_rule)
-        task.create_task(context, task.CREATE,
-                         data_type=task.SECURITY_GROUP_RULE,
-                         resource_id=rule['id'], data=rule)
 
         try:
             self.api_cli.create_security_group_rule(rule)
@@ -676,9 +633,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
         with context.session.begin(subtransactions=True):
             super(MidonetMixin, self).delete_security_group_rule(context,
                                                                  sg_rule_id)
-            task.create_task(context, task.DELETE,
-                             data_type=task.SECURITY_GROUP_RULE,
-                             resource_id=sg_rule_id)
             self.api_cli.delete_security_group_rule(sg_rule_id)
 
         LOG.info(_LI("MidonetMixin.delete_security_group_rule exiting: "
@@ -711,8 +665,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
                                       vip['vip']['pool_id'])
 
             v = super(MidonetMixin, self).create_vip(context, vip)
-            task.create_task(context, task.CREATE, data_type=task.VIP,
-                             resource_id=v['id'], data=v)
             self.api_cli.create_vip(v)
             v['status'] = constants.ACTIVE
             self.update_status(context, loadbalancer_db.Vip, v['id'],
@@ -728,8 +680,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
         with context.session.begin(subtransactions=True):
             super(MidonetMixin, self).delete_vip(context, id)
-            task.create_task(context, task.DELETE, data_type=task.VIP,
-                             resource_id=id)
             self.api_cli.delete_vip(id)
 
         LOG.debug("MidonetMixin.delete_vip existing: id=%(id)r",
@@ -742,8 +692,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
         with context.session.begin(subtransactions=True):
             v = super(MidonetMixin, self).update_vip(context, id, vip)
-            task.create_task(context, task.UPDATE, data_type=task.VIP,
-                             resource_id=id, data=v)
             self.api_cli.update_vip(id, v)
 
         LOG.debug("MidonetMixin.update_vip exiting: id=%(id)r, "
@@ -775,8 +723,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
         with context.session.begin(subtransactions=True):
             p = super(MidonetMixin, self).create_pool(context, pool)
-            task.create_task(context, task.CREATE, data_type=task.POOL,
-                             resource_id=p['id'], data=p)
             res = {
                 'id': p['id'],
                 rsi.ROUTER_ID: router_id
@@ -802,8 +748,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
         with context.session.begin(subtransactions=True):
             p = super(MidonetMixin, self).update_pool(context, id, pool)
-            task.create_task(context, task.UPDATE, data_type=task.POOL,
-                             resource_id=id, data=p)
             self.api_cli.update_pool(id, p)
 
         LOG.debug("MidonetMixin.update_pool exiting: id=%(id)r, "
@@ -818,8 +762,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
             self._delete_resource_router_id_binding(context, id,
                                                     loadbalancer_db.Pool)
             super(MidonetMixin, self).delete_pool(context, id)
-            task.create_task(context, task.DELETE, data_type=task.POOL,
-                             resource_id=id)
             self.api_cli.delete_pool(id)
 
         LOG.debug("MidonetMixin.delete_pool exiting: %(id)r", {'id': id})
@@ -831,8 +773,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
         with context.session.begin(subtransactions=True):
             m = super(MidonetMixin, self).create_member(context, member)
-            task.create_task(context, task.CREATE, data_type=task.MEMBER,
-                             resource_id=m['id'], data=m)
             self.api_cli.create_member(m)
             m['status'] = constants.ACTIVE
             self.update_status(context, loadbalancer_db.Member, m['id'],
@@ -849,8 +789,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
         with context.session.begin(subtransactions=True):
             m = super(MidonetMixin, self).update_member(context, id, member)
-            task.create_task(context, task.UPDATE, data_type=task.MEMBER,
-                             resource_id=id, data=m)
             self.api_cli.update_member(id, m)
 
         LOG.debug("MidonetMixin.update_member exiting: id=%(id)r, "
@@ -864,8 +802,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
         with context.session.begin(subtransactions=True):
             super(MidonetMixin, self).delete_member(context, id)
-            task.create_task(context, task.DELETE,
-                             data_type=task.MEMBER, resource_id=id)
             self.api_cli.delete_member(id)
 
         LOG.debug("MidonetMixin.delete_member exiting: %(id)r",
@@ -879,9 +815,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
         with context.session.begin(subtransactions=True):
             hm = super(MidonetMixin, self).create_health_monitor(
                 context, health_monitor)
-            task.create_task(context, task.CREATE,
-                             data_type=task.HEALTH_MONITOR,
-                             resource_id=hm['id'], data=hm)
             self.api_cli.create_health_monitor(hm)
 
         LOG.debug("MidonetMixin.create_health_monitor exiting: "
@@ -897,9 +830,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
         with context.session.begin(subtransactions=True):
             hm = super(MidonetMixin, self).update_health_monitor(
                 context, id, health_monitor)
-            task.create_task(context, task.UPDATE,
-                             data_type=task.HEALTH_MONITOR,
-                             resource_id=id, data=hm)
             self.api_cli.update_health_monitor(id, hm)
 
         LOG.debug("MidonetMixin.update_health_monitor exiting: id=%(id)r, "
@@ -914,8 +844,6 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
 
         with context.session.begin(subtransactions=True):
             super(MidonetMixin, self).delete_health_monitor(context, id)
-            task.create_task(context, task.DELETE,
-                             data_type=task.HEALTH_MONITOR, resource_id=id)
             self.api_cli.delete_health_monitor(id)
 
         LOG.debug("MidonetMixin.delete_health_monitor exiting: %(id)r",
@@ -964,12 +892,8 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
                   " %(agent_membership)r",
                   {'agent_membership': agent_membership})
 
-        with context.session.begin(subtransactions=True):
-            am = super(MidonetMixin, self).create_agent_membership(
-                context, agent_membership)
-            task.create_task(context, task.CREATE,
-                             data_type=task.AGENT_MEMBERSHIP,
-                             resource_id=am['id'], data=am)
+        am = super(MidonetMixin, self).create_agent_membership(
+            context, agent_membership)
 
         LOG.debug("MidonetMixin.create_agent_membership exiting: "
                   "%(agent_membership)r", {'agent_membership': am})
@@ -980,8 +904,7 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
         LOG.debug("MidonetMixin.get_agent_membership called: id=%(id)r",
                   {'id': id})
 
-        with context.session.begin(subtransactions=True):
-            am = super(MidonetMixin, self).get_agent_membership(context, id)
+        am = super(MidonetMixin, self).get_agent_membership(context, id)
 
         LOG.debug("MidonetMixin.get_agent_membership exiting: id=%(id)r, "
                   "agent_membership=%(agent_membership)r",
@@ -994,9 +917,8 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
                               page_reverse=False):
         LOG.debug("MidonetMixin.get_agent_memberships called")
 
-        with context.session.begin(subtransactions=True):
-            ams = super(MidonetMixin, self).get_agent_memberships(
-                context, filters, fields, sorts, limit, marker, page_reverse)
+        ams = super(MidonetMixin, self).get_agent_memberships(
+            context, filters, fields, sorts, limit, marker, page_reverse)
 
         LOG.debug("MidonetMixin.get_agent_memberships exiting")
         return ams
@@ -1006,10 +928,7 @@ class MidonetMixin(db_base_plugin_v2.NeutronDbPluginV2,
         LOG.debug("MidonetMixin.delete_agent_membership called: %(id)r",
                   {'id': id})
 
-        with context.session.begin(subtransactions=True):
-            super(MidonetMixin, self).delete_agent_membership(context, id)
-            task.create_task(context, task.DELETE,
-                             data_type=task.AGENT_MEMBERSHIP, resource_id=id)
+        super(MidonetMixin, self).delete_agent_membership(context, id)
 
         LOG.debug("MidonetMixin.delete_agent_membership exiting: %(id)r",
                   {'id': id})
