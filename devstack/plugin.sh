@@ -57,6 +57,9 @@ if [[ "$1" == "stack" ]]; then
 
     elif [[ "$2" == "post-config" ]]; then
 
+        sudo cp $PLUGIN_PATH/devstack/mido.filters /etc/neutron/rootwrap.d/
+        sudo cp $PLUGIN_PATH/devstack/mido.filters /etc/nova/rootwrap.d/
+
         midonet-db-manage upgrade head
 
         # Hack libvirt qemu conf to allow ethernet mode to run
