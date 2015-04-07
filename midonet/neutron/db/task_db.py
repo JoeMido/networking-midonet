@@ -20,7 +20,7 @@ import sqlalchemy as sa
 from neutron.common import exceptions as n_exc
 from neutron.db import model_base
 from neutron import i18n
-from neutron.openstack.common import log as logging
+from oslo_log import log as logging
 import uuid
 
 CONF_ID = '00000000-0000-0000-0000-000000000001'

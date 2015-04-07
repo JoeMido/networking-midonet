@@ -23,7 +23,7 @@ from midonetclient import exc
 from neutron.api.v2 import base
 from neutron.common import exceptions as n_exc
 from neutron import i18n
-from neutron.openstack.common import log as logging
+from oslo_log import log as logging
 
 
 LOG = logging.getLogger(__name__)

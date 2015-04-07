@@ -21,7 +21,7 @@ import six
 from neutron.api import extensions
 from neutron.api.v2 import base
 from neutron import manager
-from neutron.openstack.common import log as logging
+from oslo_log import log as logging
 
 LOG = logging.getLogger(__name__)
 

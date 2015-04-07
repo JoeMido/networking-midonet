@@ -50,9 +50,9 @@ from neutron.db import portbindings_db
 from neutron.db import securitygroups_db
 from neutron.extensions import portbindings
 from neutron.extensions import securitygroup as ext_sg
-from neutron.openstack.common import log as logging
 from neutron.plugins.common import constants
 from neutron_lbaas.db.loadbalancer import loadbalancer_db
+from oslo_log import log as logging
 
 
 LOG = logging.getLogger(__name__)
