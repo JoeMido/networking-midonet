@@ -29,6 +29,7 @@ from midonet.neutron.db import data_state_db  # noqa
 from midonet.neutron.db import data_version_db as dv_db
 from midonet.neutron.db import port_binding_db as pb_db  # noqa
 from midonet.neutron.db import task_db  # noqa
+from neutron_lbaas.db.loadbalancer import loadbalancer_db  # noqa
 
 from neutron import context
 from neutron.db import api as db_api
@@ -58,7 +59,6 @@ class MidonetPluginConf(object):
     """
 
     plugin_name = PLUGIN_NAME
-    cfg.CONF.set_override('use_cluster', True, group='MIDONET')
 
     @staticmethod
     def setUp(test_case, parent_setup=None):
@@ -72,6 +72,7 @@ class MidonetPluginV2TestCase(test_plugin.NeutronDbPluginV2TestCase):
     def setup_parent(self):
         # Ensure that the parent setup can be called without arguments
         # by the common configuration setUp.
+        cfg.CONF.set_override('use_cluster', True, group='MIDONET')
         parent_setup = functools.partial(
             super(MidonetPluginV2TestCase, self).setUp,
             plugin=MidonetPluginConf.plugin_name

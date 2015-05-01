@@ -13,16 +13,25 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import contextlib
 import webob.exc
 
 from midonet.neutron.tests.unit import test_midonet_plugin as test_mn
 from midonet.neutron.tests.unit import test_midonet_plugin_api as test_mn_api
 
+from neutron.db import api as db_api
 from neutron.tests.unit.api import test_extensions as test_ex
 from neutron.tests.unit.extensions import test_l3
 from neutron_lbaas.extensions import loadbalancer
 from neutron_lbaas.tests.unit.db.loadbalancer import test_db_loadbalancer
 from oslo_utils import uuidutils
+from sqlalchemy.orm import sessionmaker
+
+
+def get_session():
+    engine = db_api.get_engine()
+    Session = sessionmaker(bind=engine)
+    return Session()
 
 
 class LoadbalancerTestExtensionManager(test_l3.L3TestExtensionManager):
