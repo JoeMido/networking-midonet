@@ -9,6 +9,9 @@ MIDONET_DIR=${MIDONET_DIR:-$DEST/midonet}
 # backend of MidoNet NSDB.
 MIDONET_USE_ZOOM=${MIDONET_USE_ZOOM:-False}
 
+# This flag indicates that we want to use ml2 as the plugin instead of midonet
+MIDONET_USE_ML2=${MIDONET_USE_ML2:-False}
+
 # MidoNet service endpoint configuration
 MIDONET_API_PORT=${MIDONET_API_PORT:-8081}
 MIDONET_CLUSTER_API_PORT=${MIDONET_CLUSTER_API_PORT:-8082}
@@ -46,8 +49,15 @@ enable_service q-lbaas
 enable_service q-dhcp
 enable_service q-meta
 
-# Use midonet as Neutron plugin
-Q_PLUGIN=midonet
+if [[ "$MIDONET_USE_ML2" == "True" ]]; then
+    # Set the plugin to ml2, but the mech driver to midonet
+    Q_PLUGIN=ml2
+    Q_ML2_PLUGIN_MECHANISM_DRIVERS=midonet
+else
+    # Use midonet as Neutron plugin
+    Q_PLUGIN=midonet
+fi
+
 IP_VERSION=4
 
 # Set the database driver for sqlalchemy

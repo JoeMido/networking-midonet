@@ -23,7 +23,11 @@ if [[ "$1" == "stack" ]]; then
 
     if [[ "$2" == "pre-install" ]]; then
 
-        source $ABSOLUTE_PATH/functions
+        # We only want to override the neutron plugin installation
+        # functions if we are using midonet at the plugin.
+        if [[ "$MIDONET_USE_ML2" != "True" ]]; then
+            source $ABSOLUTE_PATH/functions
+        fi
 
         # Clone and build midonet service
         ERROR_ON_CLONE_BAK=$ERROR_ON_CLONE
@@ -100,7 +104,11 @@ EOF"
 
 elif [[ "$1" == "unstack" ]]; then
 
-    source $ABSOLUTE_PATH/functions
+    # We only want to override the neutron plugin installation
+    # functions if we are using midonet at the plugin.
+    if [[ "$MIDONET_USE_ML2" != "True" ]]; then
+        source $ABSOLUTE_PATH/functions
+    fi
 
     if [ "$MIDONET_CREATE_FAKE_UPLINK" == "True" ]; then
         if [[ "$MIDONET_USE_ZOOM" == "True" ]]; then
