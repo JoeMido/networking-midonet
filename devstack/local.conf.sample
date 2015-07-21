@@ -52,6 +52,10 @@ NOVA_VNC_ENABLED=True
 # disable_service q-dhcp
 # disable_service q-meta
 
+# If you want to stack with ML2 as the plugin and midonet as
+# the mechanism driver, uncomment these lines:
+MIDONET_USE_ML2=True
+
 # If you want to use the new V2 architecture of MidoNet, uncomment these:
 #
 # MIDONET_USE_ZOOM=True
