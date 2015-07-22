@@ -27,6 +27,14 @@ if [[ "$1" == "stack" ]]; then
         # functions if we are using midonet at the plugin.
         if [[ "$MIDONET_USE_ML2" != "True" ]]; then
             source $ABSOLUTE_PATH/functions
+        else
+            function neutron_plugin_setup_interface_driver {
+                local conf_file=$1
+                iniset $conf_file DEFAULT interface_driver neutron.agent.linux.interface.MidonetInterfaceDriver
+            }
+            function _neutron_service_plugin_class_add {
+                :
+            }
         fi
 
         # Clone and build midonet service

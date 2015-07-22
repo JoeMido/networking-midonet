@@ -18,7 +18,7 @@ from oslo_config import cfg
 
 
 mido_opts = [
-    cfg.StrOpt('midonet_uri', default='http://localhost:8080/midonet-api',
+    cfg.StrOpt('midonet_uri', default='http://localhost:8081/midonet-api',
                help=_('MidoNet API server URI.')),
     cfg.StrOpt('username', default='admin',
                help=_('MidoNet admin username.')),
