@@ -54,6 +54,7 @@ if [[ "$MIDONET_USE_ML2" == "True" ]]; then
     Q_PLUGIN=ml2
     Q_ML2_PLUGIN_MECHANISM_DRIVERS=midonet
     Q_SERVICE_PLUGIN_CLASSES=midonet.neutron.services.l3.l3_midonet.MidonetL3ServicePlugin
+    Q_L3_ENABLED=True
 else
     # Use midonet as Neutron plugin
     Q_PLUGIN=midonet
